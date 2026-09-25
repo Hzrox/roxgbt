@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROXGBT - AI Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#080c14; --card:#0f172a; --accent:#00ff66; --text:#e2e8f0; --border:#1e293b;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter', sans-serif; }
+        body { background:var(--bg); color:var(--text); display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        
+        header {
+            padding:15px 25px; background:rgba(15, 23, 42, 0.8); border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center; backdrop-filter:blur(10px);
+        }
+        .logo { font-family:'Space Mono', monospace; font-weight:700; color:var(--accent); font-size:1.4rem; text-shadow:0 0 10px rgba(0,255,102,0.4); }
+        .status { font-family:'Space Mono', monospace; font-size:0.8rem; color:#64748b; display:flex; align-items:center; gap:8px; }
+        .dot { width:8px; height:8px; background:var(--accent); border-radius:50%; box-shadow:0 0 8px var(--accent); }
+
+        .chat-container { flex:1; overflow-y:auto; padding:25px; display:flex; flex-direction:column; gap:20px; }
+        .msg { max-width:80%; padding:14px 18px; border-radius:12px; line-height:1.5; font-size:0.95rem; animation:fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        
+        .user-msg { background:#1e293b; align-self:flex-end; border-bottom-right-radius:2px; color:#fff; }
+        .ai-msg { background:var(--card); align-self:flex-start; border:1px solid var(--border); border-bottom-left-radius:2px; }
+        .ai-msg .sender { font-family:'Space Mono', monospace; color:var(--accent); font-size:0.8rem; margin-bottom:6px; font-weight:700; }
+
+        .generated-img { width:100%; max-width:400px; border-radius:8px; margin-top:10px; border:1px solid var(--border); display:block; }
+
+        .input-area { padding:20px; background:var(--card); border-top:1px solid var(--border); }
+        .input-box { max-width:900px; margin:0 auto; display:flex; gap:10px; background:#080c14; padding:8px 12px; border-radius:8px; border:1px solid var(--border); }
+        .input-box:focus-within { border-color:var(--accent); box-shadow:0 0 10px rgba(0,255,102,0.2); }
+        
+        input { flex:1; background:transparent; border:none; color:#fff; outline:none; font-size:1rem; padding:8px; }
+        button { background:var(--accent); color:#000; border:none; padding:10px 20px; font-weight:700; border-radius:6px; cursor:pointer; font-family:'Space Mono', monospace; transition:0.2s; }
+        button:hover { opacity:0.9; box-shadow:0 0 15px var(--accent); }
+
+        .quick-tags { max-width:900px; margin:10px auto 0 auto; display:flex; gap:10px; font-size:0.8rem; font-family:'Space Mono', monospace; color:#64748b; }
+        .tag-btn { background:#1e293b; color:#94a3b8; padding:4px 10px; border-radius:4px; cursor:pointer; }
+        .tag-btn:hover { color:var(--accent); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">⚡ ROXGBT v1.0</div>
+        <div class="status"><div class="dot"></div> SYSTEM ONLINE</div>
+    </header>
+
+    <div class="chat-container" id="chat">
+        <div class="msg ai-msg">
+            <div class="sender">ROXGBT CORE</div>
+            Selam kanka! Ben ROXGBT. Bana istediğin soruyu sorabilir ya da <b>"resim çiz: [istek]"</b> diyerek fotoğraflar ürettirebilirsin.
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-box">
+            <input type="text" id="userInput" placeholder="Bir şeyler yazın veya 'resim çiz arabalar' deyin..." onkeypress="if(event.key==='Enter') sendMsg()">
+            <button onclick="sendMsg()">GÖNDER</button>
+        </div>
+        <div class="quick-tags">
+            <span>İpucu:</span>
+            <span class="tag-btn" onclick="quickSend('Görsel çiz: Siber güvenlik hacker odası neon yeşil')">📸 Örnek Görsel Çizdir</span>
+            <span class="tag-btn" onclick="quickSend('Bana siber güvenlikte en çok kullanılan 3 aracı anlat')">🛡️ Siber Güvenlik İpucu</span>
+        </div>
+    </div>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('userInput');
+
+        function quickSend(txt) {
+            input.value = txt;
+            sendMsg();
+        }
+
+        async function sendMsg() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            // User Message
+            appendMsg(text, 'user-msg');
+            input.value = '';
+
+            // Loading AI Message
+            const aiMsgDiv = document.createElement('div');
+            aiMsgDiv.className = 'msg ai-msg';
+            aiMsgDiv.innerHTML = `<div class="sender">ROXGBT CORE</div><span class="typing">Düşünüyor...</span>`;
+            chat.appendChild(aiMsgDiv);
+            chat.scrollTop = chat.scrollHeight;
+
+            // Check Image Generation Trigger
+            const isImageReq = text.toLowerCase().includes('çiz') || text.toLowerCase().includes('resim') || text.toLowerCase().includes('fotoğraf') || text.toLowerCase().includes('draw') || text.toLowerCase().includes('image');
+
+            if (isImageReq) {
+                const prompt = encodeURIComponent(text.replace(/(çiz|resim|fotoğraf|görsel|yap|draw|image)/gi, '').trim() || 'futuristic cyberpunk city');
+                const imgUrl = `https://pollinations.ai/p/${prompt}?width=1024&height=1024&seed=${Math.floor(Math.random()*1000)}&nologo=true`;
+                
+                aiMsgDiv.innerHTML = `
+                    <div class="sender">ROXGBT CORE</div>
+                    Görseliniz oluşturuldu:
+                    <br>
+                    <img src="${imgUrl}" class="generated-img" alt="Generated Image" onload="scrollToBottom()">
+                `;
+            } else {
+                // AI Text Response API (DuckDuckGo / Pollinations Text Free AI)
+                try {
+                    const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(text)}?system=Sen ROXGBT adında Türkçe konuşan, siber güvenlik ve yazılım odaklı, samimi ve bilgili bir yapay zekasın.`);
+                    const data = await res.text();
+                    aiMsgDiv.innerHTML = `<div class="sender">ROXGBT CORE</div>${data}`;
+                } catch (e) {
+                    aiMsgDiv.innerHTML = `<div class="sender">ROXGBT CORE</div>Sistem yanıt oluştururken bir hata aldı, tekrar dene babao!`;
+                }
+            }
+            scrollToBottom();
+        }
+
+        function appendMsg(txt, className) {
+            const div = document.createElement('div');
+            div.className = `msg ${className}`;
+            div.innerText = txt;
+            chat.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>
